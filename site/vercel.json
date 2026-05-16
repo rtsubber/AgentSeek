@@ -1,0 +1,17 @@
+{
+  "rewrites": [
+    { "source": "/v1/:path*", "destination": "https://ron-system-product-name.tail38a93d.ts.net/agentreg/v1/:path*" },
+    { "source": "/.well-known/:path*", "destination": "https://ron-system-product-name.tail38a93d.ts.net/agentreg/.well-known/:path*" },
+    { "source": "/openapi.json", "destination": "https://ron-system-product-name.tail38a93d.ts.net/agentreg/openapi.json" }
+  ],
+  "headers": [
+    {
+      "source": "/v1/:path*",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "https://agentdns.co" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,PUT,DELETE,OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "X-API-Key,X-Admin-Key,Content-Type" }
+      ]
+    }
+  ]
+}
