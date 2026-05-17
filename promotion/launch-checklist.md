@@ -1,4 +1,4 @@
-# Agent Registry — Promotion Checklist
+# AgentSeek — Promotion Checklist
 
 ## ✅ Done
 - [x] Landing page built and deployed (Vercel)
@@ -29,21 +29,21 @@
 
 ### 4. Manual Submissions (Browser Required)
 - [ ] **Product Hunt** — https://producthunt.com/posts/new
-  - Name: Agent Registry
+  - Name: AgentSeek
   - Tagline: The DNS for AI Agents
   - Description: Register AI agents with A2A-compliant manifests. Discover them by capability with semantic search.
   - URL: https://agentregistry.co
   - Topics: Developer Tools, API, AI
   
 - [ ] **theresanaiforthat.com** — https://theresanaiforthat.com/submit
-  - Name: Agent Registry
+  - Name: AgentSeek
   - URL: https://agentregistry.co
   - Description: AI agent directory with semantic search. Register your agents, discover others by capability.
   - Category: Developer Tools, API
   
 - [ ] **RapidAPI** — https://rapidapi.com/provider/register
-  - Provider: Agent Registry
-  - API: Agent Registry API
+  - Provider: AgentSeek
+  - API: AgentSeek API
   - OpenAPI spec: https://api.agentregistry.co/openapi.json
   
 - [ ] **GitHub PR** — public-apis repo
@@ -64,18 +64,18 @@
 ## Social Media Copy
 
 ### Twitter/X (280 char)
-🚀 Launching Agent Registry — the DNS for AI Agents.
+🚀 Launching AgentSeek — the DNS for AI Agents.
 
 Register your agents with A2A-compliant manifests. Discover them by capability with semantic search. Free tier = 100 discoveries/mo.
 
 Try it: https://agentregistry.co
 
 ### Facebook
-🚀 We just launched Agent Registry — the DNS for AI Agents!
+🚀 We just launched AgentSeek — the DNS for AI Agents!
 
 If you're building AI agents, you know the discovery problem. Every developer reinvents how agents find each other. Not anymore.
 
-Agent Registry is a single directory where:
+AgentSeek is a single directory where:
 ✅ Register agents with A2A-compliant manifests
 ✅ Discover by capability using semantic search (not just keywords)
 ✅ Trust scores, reviews, and verification badges
@@ -86,11 +86,11 @@ Built on FastAPI + SQLite + Ollama embeddings. Open source.
 Try it free: https://agentregistry.co
 
 ### LinkedIn
-Excited to announce Agent Registry — the DNS for AI Agents.
+Excited to announce AgentSeek — the DNS for AI Agents.
 
 The agent economy has a discovery problem. Thousands of AI agents are being built, but there's no central directory where they can find each other by capability.
 
-Agent Registry solves this with:
+AgentSeek solves this with:
 • A2A-compliant manifests — machine-readable metadata for every agent
 • Semantic search — find agents by meaning, not just exact keyword matches
 • Trust infrastructure — verified badges, reviews, usage stats

@@ -181,11 +181,26 @@ async def create_api_key(email: str, agent_id: str = None, tier: str = "free") -
     return {"key_id": key_id, "email": email, "tier": tier}
 
 
+async def resolve_suite_key(key_id: str) -> str | None:
+    """If key starts with suite_, look up the AgentSeek key. Otherwise return as-is."""
+    if key_id.startswith("suite_"):
+        async with aiosqlite.connect(DB_PATH) as db:
+            async with db.execute("SELECT agentseek_key FROM suite_keys WHERE suite_key = ?", (key_id,)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return row[0]
+        return None  # Invalid suite key
+    return key_id
+
+
 async def validate_key(key_id: str) -> dict | None:
+    resolved = await resolve_suite_key(key_id)
+    if resolved is None:
+        return None  # Invalid suite key
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT * FROM api_keys WHERE key_id = ? AND active = 1", (key_id,)
+            "SELECT * FROM api_keys WHERE key_id = ? AND active = 1", (resolved,)
         ) as cursor:
             row = await cursor.fetchone()
             return dict(row) if row else None

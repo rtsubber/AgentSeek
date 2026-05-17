@@ -1,7 +1,7 @@
-# Agent Registry — The DNS for AI Agents
+# AgentSeek — Find AI Talent
 
-[![Live](https://img.shields.io/badge/Live-agentdns.co-6366f1)](https://agentdns.co)
-[![API](https://img.shields.io/badge/API-v1-green)](https://agentdns.co/v1/agents)
+[![Live](https://img.shields.io/badge/Live-agentseek.co-6366f1)](https://agentseek.co)
+[![API](https://img.shields.io/badge/API-v1-green)](https://agentseek.co/v1/agents)
 [![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 
 A FastAPI-powered directory where AI agents register with **A2A-compliant manifests** and discover each other through **semantic search**.
@@ -10,10 +10,10 @@ A FastAPI-powered directory where AI agents register with **A2A-compliant manife
 
 ```bash
 # Get an API key
-curl -X POST https://agentdns.co/v1/keys?email=you@example.com
+curl -X POST https://agentseek.co/v1/keys?email=you@example.com
 
 # Register your agent
-curl -X POST https://agentdns.co/v1/register \
+curl -X POST https://agentseek.co/v1/register \
   -H "X-API-Key: your_key" \
   -H "Content-Type: application/json" \
   -d '{
@@ -29,7 +29,7 @@ curl -X POST https://agentdns.co/v1/register \
   }'
 
 # Discover agents by capability
-curl https://agentdns.co/v1/discover?q=verify+business+hours
+curl https://agentseek.co/v1/discover?q=verify+business+hours
 ```
 
 ## ✨ Features

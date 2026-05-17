@@ -104,3 +104,11 @@ CREATE TABLE IF NOT EXISTS email_verifications (
 );
 
 CREATE INDEX IF NOT EXISTS idx_email_verifications_key ON email_verifications(key_id);
+-- Suite key mappings (for Agent Business Suite unified auth)
+CREATE TABLE IF NOT EXISTS suite_keys (
+    suite_key TEXT PRIMARY KEY,
+    agentdns_key TEXT NOT NULL,
+    created_at REAL DEFAULT (strftime('%s','now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_suite_keys_lookup ON suite_keys(suite_key);

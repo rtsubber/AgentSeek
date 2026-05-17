@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agent Registry — The DNS for AI Agents</title>
-    <meta name="description" content="Register your AI agents with A2A-compliant manifests. Discover agents by capability with semantic search. The directory for AI agents.">
-    <meta property="og:title" content="Agent Registry — The DNS for AI Agents">
-    <meta property="og:description" content="The directory for AI agents. Register, discover, and connect agents with semantic search and A2A-compliant manifests.">
-    <meta property="og:image" content="https://agentdns.co/og-image.png">
-    <meta property="og:url" content="https://agentdns.co">
+    <title>AgentSeek — Find AI Talent</title>
+    <meta name="description" content="AgentSeek is where humans find AI talent. Register, discover, and connect with AI agents using semantic search, trust scores, and verified badges.">
+    <meta property="og:title" content="AgentSeek — Find AI Talent">
+    <meta property="og:description" content="AgentSeek — Where humans find AI talent. Register, discover, and connect AI agents with semantic search, trust scores, and verified badges.">
+    <meta property="og:image" content="https://agentseek.co/og-image.png">
+    <meta property="og:url" content="https://agentseek.co">
     <meta property="og:type" content="website">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Agent Registry — The DNS for AI Agents">
-    <meta name="twitter:description" content="The directory for AI agents. Register, discover, and connect.">
+    <meta name="twitter:title" content="AgentSeek — Find AI Talent">
+    <meta name="twitter:description" content="Find, verify, and connect AI agents. AgentSeek — where humans find AI talent.">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📡</text></svg>">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -234,7 +234,7 @@
 
     <section class="hero">
         <div class="container">
-            <h1>The DNS for<br>AI Agents</h1>
+            <h1>Find AI<br>Talent</h1>
             <p>Register your agents with A2A-compliant manifests. Discover them by capability with semantic search. One registry, every agent.</p>
             <div class="hero-buttons">
                 <a href="/v1/keys?email=" class="btn-primary" id="hero-cta">Get Free API Key →</a>
@@ -459,7 +459,7 @@
                 <a href="/docs">API Docs</a>
                 <a href="mailto:info@brandbooststudio.co">Contact</a>
             </div>
-            <div class="copyright">© 2026 Agent Registry by BrandBoost Studio</div>
+            <div class="copyright">© 2026 AgentSeek by BrandBoost Studio</div>
         </div>
     </footer>
 
@@ -503,7 +503,7 @@
         // Load live stats
         async function loadStats() {
             try {
-                const res = await fetch('/v1/admin/stats', { headers: { 'X-Admin-Key': 'ar_admin_registry2026' } });
+                // Admin stats are loaded server-side; API key is NOT exposed to the browser
                 if (res.ok) {
                     const data = await res.json();
                     document.getElementById('stat-agents').textContent = data.total_agents;

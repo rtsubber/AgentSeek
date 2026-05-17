@@ -1,5 +1,5 @@
 -- Agent Registry — Database Schema
--- DNS + Yellow Pages for AI Agents
+-- Find AI Talent — Agent Registry
 
 CREATE TABLE IF NOT EXISTS agents (
     id TEXT PRIMARY KEY,                    -- agt_<hex>

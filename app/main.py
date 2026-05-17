@@ -1,4 +1,4 @@
-"""Agent Registry — DNS + Yellow Pages for AI Agents
+"""AgentSeek — Find AI Talent
 
 A registry where developers register their agents with capability manifests,
 and other agents discover them via semantic search.
@@ -66,8 +66,8 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
-VERIFY_URL = os.getenv("VERIFY_URL", "https://api.agentdns.co/v1/verify")
-SMTP_FROM = os.getenv("SMTP_FROM", "noreply@agentdns.co")
+VERIFY_URL = os.getenv("VERIFY_URL", "https://api.agentseek.co/v1/verify")
+SMTP_FROM = os.getenv("SMTP_FROM", "noreply@agentseek.co")
 
 if STRIPE_SECRET_KEY:
     stripe.api_key = STRIPE_SECRET_KEY
@@ -175,8 +175,8 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(
-    title="Agent Registry",
-    description="DNS + Yellow Pages for AI Agents.",
+    title="AgentSeek",
+    description="Where humans find AI talent. Register, discover, and connect AI agents with semantic search, trust scores, and verified badges.",
     version="1.0.0",
     docs_url="/docs" if os.getenv("DEBUG") else None,
     redoc_url="/redoc" if os.getenv("DEBUG") else None,
@@ -184,8 +184,8 @@ app = FastAPI(
 )
 
 ALLOWED_ORIGINS = [
-    "https://agentdns.co",
-    "https://www.agentdns.co",
+    "https://agentseek.co",
+    "https://www.agentseek.co",
     "http://localhost:3000",
     "http://localhost:8787",
 ]
@@ -429,9 +429,9 @@ async def discover(
                     status_code=402,
                     detail=(
                         f"Discovery limit reached ({max_discoveries}/month for {tier} tier). "
-                        "Upgrade at https://agentdns.co/pricing"
+                        "Upgrade at https://agentseek.co/pricing"
                     ),
-                    headers={"X-Upgrade-URL": "https://agentdns.co/pricing"},
+                    headers={"X-Upgrade-URL": "https://agentseek.co/pricing"},
                 )
             await increment_usage(caller["key_id"], "discoveries")
     else:
@@ -985,8 +985,8 @@ async def create_checkout(request: CheckoutRequest, x_api_key: str = Header(None
                 "registry_tier": request.tier,
                 "registry_email": request.email,
             },
-            success_url="https://agentdns.co/dashboard?upgraded=true",
-            cancel_url="https://agentdns.co/pricing?canceled=true",
+            success_url="https://agentseek.co/dashboard?upgraded=true",
+            cancel_url="https://agentseek.co/pricing?canceled=true",
         )
         return {"checkout_url": session.url, "session_id": session.id}
     except stripe.error.StripeError as e:
@@ -1079,7 +1079,7 @@ async def stripe_webhook(request: Request):
 
 @app.get("/.well-known/ai-plugin.json")
 async def ai_plugin_manifest(request: Request):
-    host = request.headers.get("host", "api.agentdns.co")
+    host = request.headers.get("host", "api.agentseek.co")
     scheme = "https" if "localhost" not in host else "http"
     return {
         "schema_version": "v1",
@@ -1089,9 +1089,9 @@ async def ai_plugin_manifest(request: Request):
         "description_for_human": "The directory for AI agents. Find the right agent for any task.",
         "auth": {"type": "api_key", "key_name": "X-API-Key", "key_location": "header"},
         "api": {"type": "openapi", "url": f"{scheme}://{host}/openapi.json"},
-        "logo_url": "https://agentdns.co/logo.png",
+        "logo_url": "https://agentseek.co/logo.png",
         "contact_email": "info@brandbooststudio.co",
-        "legal_info_url": "https://agentdns.co/terms",
+        "legal_info_url": "https://agentseek.co/terms",
     }
 
 @app.get("/openapi.json")
@@ -1100,4 +1100,4 @@ async def openapi_spec():
 
 @app.get("/")
 async def landing():
-    return RedirectResponse(url="https://agentdns.co")
+    return RedirectResponse(url="https://agentseek.co")

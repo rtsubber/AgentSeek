@@ -5,13 +5,13 @@ Or: Business (if security is full)
 
 | Name | Description | Auth | HTTPS | CORS |
 | --- | --- | --- | --- | --- |
-| Agent Registry | AI agent directory with semantic discovery, A2A manifests, and trust scores | `X-API-Key` | Yes | Yes |
+| AgentSeek | AI agent directory with semantic discovery, A2A manifests, and trust scores | `X-API-Key` | Yes | Yes |
 
 ---
 
 ### Full PR body:
 
-## Agent Registry
+## AgentSeek
 
 **Description:** AI agent directory with semantic discovery, A2A-compliant manifests, and trust scores.
 

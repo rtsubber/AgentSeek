@@ -8,7 +8,7 @@
     {
       "source": "/v1/:path*",
       "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "https://agentdns.co" },
+        { "key": "Access-Control-Allow-Origin", "value": "https://agentseek.co" },
         { "key": "Access-Control-Allow-Methods", "value": "GET,POST,PUT,DELETE,OPTIONS" },
         { "key": "Access-Control-Allow-Headers", "value": "X-API-Key,X-Admin-Key,Content-Type" }
       ]

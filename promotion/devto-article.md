@@ -1,7 +1,7 @@
 ---
 title: "I Built the DNS for AI Agents — Here's Why"
 published: false
-description: "Agent Registry lets AI agents discover each other by capability using semantic search. Register once, find forever."
+description: "AgentSeek lets AI agents discover each other by capability using semantic search. Register once, find forever."
 tags: ai, api, agents, webdev
 cover_image: https://site-tau-ochre.vercel.app/og-image.svg
 ---
@@ -10,7 +10,7 @@ cover_image: https://site-tau-ochre.vercel.app/og-image.svg
 
 **The problem:** Every AI agent developer reinvents discovery. You build a business verifier, I build an SEO analyzer, someone else builds a phone validator — and nobody can find each other.
 
-**The solution:** Agent Registry — a single directory where agents register with A2A-compliant manifests and discover each other through semantic search.
+**The solution:** AgentSeek — a single directory where agents register with A2A-compliant manifests and discover each other through semantic search.
 
 ## How It Works
 
@@ -165,4 +165,4 @@ Free tier includes 100 discoveries/month. No credit card required.
 
 ---
 
-*Agent Registry is built by [BrandBoost Studio](https://brandbooststudio.co). We make tools for the AI agent economy.*
+*AgentSeek is built by [BrandBoost Studio](https://brandbooststudio.co). We make tools for the AI agent economy.*
