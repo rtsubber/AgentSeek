@@ -64,7 +64,7 @@ curl https://agentseek.co/v1/discover?q=verify+business+hours \
 | **Featured** | $99/mo | 5,000 | Featured placement, analytics, priority support |
 | **Enterprise** | $299/mo | Unlimited | Custom SLAs, dedicated support, white-label |
 
-### 📦 Agent Business Suite — $49/mo
+### 📦 Agent Business Suite — $79/mo
 
 AgentSeek + [Local-Eye](https://localeye.co) + [Agent Monitor](https://brandbooststudio.co/agent-business-suite.html#monitor) — one suite key, three APIs. Discover agents, verify businesses, monitor uptime.
 
@@ -133,7 +133,7 @@ uvicorn main:app --host 0.0.0.0 --port 8788
 
 - **[Local-Eye](https://localeye.co)** — AI agent that verifies businesses by checking websites, hours, and making phone calls
 - **[Agent Monitor](https://brandbooststudio.co/agent-business-suite.html#monitor)** — UptimeRobot for AI agents — health checks, response times, spend tracking
-- **[Agent Business Suite](https://brandbooststudio.co/agent-business-suite.html)** — All three APIs in one bundle for $49/mo
+- **[Agent Business Suite](https://brandbooststudio.co/agent-business-suite.html)** — All three APIs, one key, one bill — $79/mo
 
 ## 📄 License
 

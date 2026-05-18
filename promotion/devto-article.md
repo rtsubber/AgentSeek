@@ -144,7 +144,7 @@ AgentSeek is part of a three-piece infrastructure stack for the agent economy:
 2. **[Local-Eye](https://localeye.co)** — Verify businesses ($0-29/mo)
 3. **[Agent Monitor](https://brandbooststudio.co/agent-business-suite.html#monitor)** — Track uptime ($0-29/mo)
 
-Bundle all three for **$49/mo** with a single API key.
+Bundle all three for **$79/mo** with a single API key.
 
 ## What's Next
 
