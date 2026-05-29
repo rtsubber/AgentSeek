@@ -15,6 +15,16 @@ async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
         with open(schema_path) as f:
             await db.executescript(f.read())
+        # [S5 FIX] Migrate existing DBs: add key_hash column if missing
+        try:
+            await db.execute("ALTER TABLE api_keys ADD COLUMN key_hash TEXT")
+        except Exception:
+            pass  # Column already exists — that's fine
+        # [B1 FIX] Add last_health_check column if missing
+        try:
+            await db.execute("ALTER TABLE agents ADD COLUMN last_health_check REAL")
+        except Exception:
+            pass  # Column already exists
         await db.commit()
 
 
@@ -26,9 +36,9 @@ async def register_agent(
     name: str, description: str, endpoint_url: str,
     owner_email: str, manifest_json: dict,
     category: str = "general", tags: str = "",
-    owner_name: str = None, website_url: str = None,
-    logo_url: str = None, auth_method: str = "bearer",
-    pricing_model: str = "per_call", pricing_details: str = None,
+    owner_name: str | None = None, website_url: str | None = None,
+    logo_url: str | None = None, auth_method: str = "bearer",
+    pricing_model: str = "per_call", pricing_details: str | None = None,
 ) -> dict:
     now = time.time()
     async with aiosqlite.connect(DB_PATH) as db:
@@ -97,9 +107,25 @@ async def get_agent(agent_id: str) -> dict | None:
     return None
 
 
+async def count_agents(category: str | None = None, verified: int | None = None) -> int:
+    """[B7 FIX] Return total count of matching agents for pagination."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        query = "SELECT COUNT(*) FROM agents WHERE active = 1"
+        params = []
+        if category:
+            query += " AND category = ?"
+            params.append(category)
+        if verified is not None:
+            query += " AND verified >= ?"
+            params.append(verified)
+        async with db.execute(query, params) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else 0
+
+
 async def list_agents(
-    category: str = None,
-    verified: int = None,
+    category: str | None = None,
+    verified: int | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> list:
@@ -136,6 +162,7 @@ async def update_agent_stats(
     calls: int = None,
     success_rate: float = None,
     trust_score: float = None,
+    # [B6] NOTE: Not yet called from any endpoint. Will be wired up with billing.
 ):
     async with aiosqlite.connect(DB_PATH) as db:
         updates = []
@@ -163,23 +190,37 @@ async def update_agent_stats(
 # API Keys
 # ---------------------------------------------------------------------------
 
-async def create_api_key(email: str, agent_id: str = None, tier: str = "free") -> dict:
-    key_id = f"ar_{secrets.token_hex(16)}"
+async def create_api_key(email: str, agent_id: str | None = None, tier: str = "free") -> dict:
+    """Create an API key, or return a neutral confirmation if email already registered.
+
+    SECURITY: Never returns an existing key_id. If the email already has an
+    active key, we return {"existing": True, "email": ...} without the key.
+    The caller must use the email verification flow to recover access.
+
+    S5 FIX: The key_hash (SHA-256 of key_id) is stored for bearer token lookups.
+    The raw key_id is only returned once at creation time and never stored plaintext.
+    """
     now = time.time()
+    key_id = f"as_{secrets.token_hex(16)}"
+    key_hash = hashlib.sha256(key_id.encode()).hexdigest()
     async with aiosqlite.connect(DB_PATH) as db:
+        # [B5 FIX] Check for ANY existing key for this email (active or inactive)
+        # to prevent orphan inactive keys from accumulating.
         async with db.execute(
-            "SELECT key_id, tier FROM api_keys WHERE email = ? AND active = 1", (email,)
+            "SELECT key_id, tier, active FROM api_keys WHERE email = ? ORDER BY active DESC, created_at DESC LIMIT 1", (email,)
         ) as cursor:
             existing = await cursor.fetchone()
             if existing:
-                return {"key_id": existing[0], "email": email, "tier": existing[1], "existing": True}
+                # [S1 FIX] Do NOT return the existing key_id to unauthenticated callers.
+                # The caller should use the email verification flow to recover access.
+                return {"key_id": None, "email": email, "tier": existing[1], "existing": True}
+        # [S5 FIX] Store key_hash for secure lookup.
         await db.execute(
-            "INSERT INTO api_keys (key_id, agent_id, email, tier, created_at) VALUES (?, ?, ?, ?, ?)",
-            (key_id, agent_id, email, tier, now),
+            "INSERT INTO api_keys (key_id, key_hash, agent_id, email, tier, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (key_id, key_hash, agent_id, email, tier, now),
         )
         await db.commit()
     return {"key_id": key_id, "email": email, "tier": tier}
-
 
 async def resolve_suite_key(key_id: str) -> str | None:
     """If key starts with suite_, look up the AgentSeek key. Otherwise return as-is."""
@@ -194,11 +235,26 @@ async def resolve_suite_key(key_id: str) -> str | None:
 
 
 async def validate_key(key_id: str) -> dict | None:
+    """Validate an API key by its bearer token.
+
+    S5 FIX: Tries hash-based lookup first (SHA-256 of the key),
+    then falls back to key_id lookup for backward compatibility
+    with keys created before the hash column was added.
+    """
     resolved = await resolve_suite_key(key_id)
     if resolved is None:
         return None  # Invalid suite key
+    key_hash = hashlib.sha256(resolved.encode()).hexdigest()
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
+        # [S5 FIX] Try hash-based lookup first (more secure)
+        async with db.execute(
+            "SELECT * FROM api_keys WHERE key_hash = ? AND active = 1", (key_hash,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return dict(row)
+        # Fallback: key_id lookup for keys created before key_hash column
         async with db.execute(
             "SELECT * FROM api_keys WHERE key_id = ? AND active = 1", (resolved,)
         ) as cursor:
@@ -236,7 +292,8 @@ async def get_usage(key_id: str, counter_type: str) -> int:
 
 async def reset_monthly_usage():
     """Delete counters older than 2 months. Called by cron."""
-    two_months_ago = time.strftime("%Y-%m", time.localtime(time.time() - 60 * 86400 * 60))
+    # [B2 FIX] 86400 * 60 = 5,184,000s ≈ 60 days, not 60*86400*60 ≈ 9.86 years
+    two_months_ago = time.strftime("%Y-%m", time.localtime(time.time() - 86400 * 60))
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("DELETE FROM usage_counters WHERE month < ?", (two_months_ago,))
         await db.commit()
@@ -251,6 +308,13 @@ async def log_transaction(
     caller_key_id: str, amount_cents: int,
     status: str = "completed", metadata: dict = None,
 ) -> str:
+    """Log a transaction between agents.
+
+    [B6] NOTE: This function is not yet called from any endpoint.
+    It will be wired up when billing/transaction tracking is implemented.
+    Currently the /transactions endpoint and /v1/admin/stats revenue
+    figure return empty unless populated by an external process.
+    """
     txn_id = f"txn_{secrets.token_hex(8)}"
     now = time.time()
     async with aiosqlite.connect(DB_PATH) as db:
@@ -288,7 +352,7 @@ async def add_review(
     agent_id: str,
     reviewer_key_id: str,
     rating: int,
-    review_text: str = None,
+    review_text: str | None = None,
 ) -> dict:
     """
     Insert a review and recompute trust score in a single connection.

@@ -33,17 +33,20 @@ import aiosqlite
 import stripe
 import hashlib
 import hmac
+import logging as _logging
+_logger = _logging.getLogger(__name__)
 from collections import defaultdict
 from pathlib import Path
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Header, HTTPException, Request, Query
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, EmailStr
 
 from db import (
-    init_db, register_agent, get_agent, list_agents, update_agent_stats,
+    init_db, register_agent, get_agent, list_agents, count_agents, update_agent_stats,
     create_api_key, validate_key, log_transaction, get_agent_transactions,
     add_review, get_stats, DB_PATH,
     increment_usage, get_usage, reset_monthly_usage,
@@ -60,14 +63,49 @@ def _require_env(name: str) -> str:
         raise RuntimeError(f"Required environment variable '{name}' is not set.")
     return value
 
+def _trust_tier(score: float) -> str:
+    """Convert numeric trust score to human-readable tier."""
+    if score >= 90: return "verified"
+    if score >= 70: return "trusted"
+    if score >= 40: return "unproven"
+    return "flagged"
+
 ADMIN_API_KEY = _require_env("ADMIN_API_KEY")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
-VERIFY_URL = os.getenv("VERIFY_URL", "https://api.agentseek.co/v1/verify")
+VERIFY_URL = os.getenv("VERIFY_URL", "https://agentseek.co/v1/verify")
 SMTP_FROM = os.getenv("SMTP_FROM", "noreply@agentseek.co")
+# [S9 FIX] External script path — move to env var, fail gracefully if unset
+SHEETS_WEBHOOK_SCRIPT = os.getenv("SHEETS_WEBHOOK_SCRIPT", "")
+
+# [S3 FIX] Trusted proxy configuration for IP-based rate limiting.
+# When behind a trusted reverse proxy (Tailscale Funnel, Cloudflare, etc.),
+# set TRUSTED_PROXY=true and the proxy's real-IP header name.
+# When NOT behind a proxy, use request.client.host directly.
+TRUSTED_PROXY = os.getenv("TRUSTED_PROXY", "false").lower() == "true"
+TRUSTED_PROXY_HEADER = os.getenv("TRUSTED_PROXY_HEADER", "x-real-ip")
+
+
+def _get_client_ip(request: Request) -> str:
+    """Get the real client IP, respecting trusted proxy configuration.
+
+    When TRUSTED_PROXY=true, we trust the proxy to set the correct IP header.
+    When TRUSTED_PROXY=false (default), we ignore forwarded headers to prevent
+    spoofing — an attacker can set X-Forwarded-For to anything."""
+    if TRUSTED_PROXY:
+        # Trust the configured header (e.g., X-Real-IP from Tailscale/Cloudflare)
+        real_ip = request.headers.get(TRUSTED_PROXY_HEADER, "").strip()
+        if real_ip:
+            return real_ip
+        # Fallback: take the LAST entry in X-Forwarded-For (set by our proxy)
+        forwarded = request.headers.get("x-forwarded-for", "").strip()
+        if forwarded:
+            return forwarded.split(",")[-1].strip()
+    # No trusted proxy — use direct connection IP only
+    return request.client.host if request.client else "unknown"
 
 if STRIPE_SECRET_KEY:
     stripe.api_key = STRIPE_SECRET_KEY
@@ -88,14 +126,23 @@ STRIPE_PRICES = {
 
 # ---------------------------------------------------------------------------
 # Rate limiter for key creation (IP-based, resets each hour)
+# [B4 FIX] Added eviction of stale IPs to prevent unbounded memory growth.
+# Note: These are per-process and reset on restart. For multi-worker
+# deployments, back these with the DB or a shared store.
 # ---------------------------------------------------------------------------
 _key_creation_counts: dict[str, list[float]] = defaultdict(list)
 KEY_CREATION_LIMIT = 5
 KEY_CREATION_WINDOW = 3600
+_RATE_LIMITER_MAX_IPS = 10000  # Evict oldest IPs when dict exceeds this
 
 def _check_key_creation_rate(ip: str) -> None:
     now = time.time()
     window_start = now - KEY_CREATION_WINDOW
+    # [B4 FIX] Evict stale IPs periodically to prevent memory growth
+    if len(_key_creation_counts) > _RATE_LIMITER_MAX_IPS:
+        stale_ips = [k for k, v in _key_creation_counts.items() if not v or v[-1] < window_start]
+        for k in stale_ips:
+            del _key_creation_counts[k]
     calls = [t for t in _key_creation_counts[ip] if t > window_start]
     if len(calls) >= KEY_CREATION_LIMIT:
         raise HTTPException(
@@ -118,7 +165,7 @@ class ManifestModel(BaseModel):
     pricing: dict = Field(default_factory=dict)
     category: str = Field(default="general")
     tags: list[str] = Field(default_factory=list)
-    owner_email: str = Field(...)
+    owner_email: EmailStr = Field(...)
     owner_name: str | None = None
     website_url: str | None = None
     logo_url: str | None = None
@@ -129,7 +176,7 @@ class ReviewModel(BaseModel):
 
 class CheckoutRequest(BaseModel):
     tier: str = Field(..., pattern="^(verified|featured|enterprise)$")
-    email: str = Field(...)
+    email: EmailStr = Field(...)
 
 class AgentUpdateModel(BaseModel):
     name: str | None = None
@@ -146,6 +193,7 @@ class AgentUpdateModel(BaseModel):
     pricing: dict | None = None
 
 # IP-based rate limiter for unauthenticated discover
+# [B4 FIX] Added eviction of stale IPs to prevent unbounded memory growth.
 _discover_counts: dict[str, list[float]] = defaultdict(list)
 DISCOVER_RATE_LIMIT = 30  # per hour for unauthenticated
 DISCOVER_RATE_WINDOW = 3600
@@ -153,6 +201,11 @@ DISCOVER_RATE_WINDOW = 3600
 def _check_discover_rate(ip: str) -> None:
     now = time.time()
     window_start = now - DISCOVER_RATE_WINDOW
+    # [B4 FIX] Evict stale IPs periodically to prevent memory growth
+    if len(_discover_counts) > _RATE_LIMITER_MAX_IPS:
+        stale_ips = [k for k, v in _discover_counts.items() if not v or v[-1] < window_start]
+        for k in stale_ips:
+            del _discover_counts[k]
     calls = [t for t in _discover_counts[ip] if t > window_start]
     if len(calls) >= DISCOVER_RATE_LIMIT:
         raise HTTPException(
@@ -170,8 +223,8 @@ async def lifespan(app: FastAPI):
     await init_db()
     try:
         await seed_agents()
-    except Exception:
-        pass
+    except Exception as e:
+        _logger.warning(f"Unexpected error: {e}")
     yield
 
 app = FastAPI(
@@ -312,18 +365,30 @@ async def require_caller(key_id: str | None) -> dict:
 # ---------------------------------------------------------------------------
 
 @app.post("/v1/register")
-async def register(manifest: ManifestModel, x_api_key: str = Header(None)):
+async def register(manifest: ManifestModel, request: Request, x_api_key: str = Header(None)):
     """Register a new agent."""
+    # [S1 FIX] Rate-limit unauthenticated registration to prevent key enumeration
     caller = await get_caller(x_api_key)
+    if not caller:
+        client_ip = _get_client_ip(request)
+        _check_key_creation_rate(client_ip)
+
     issued_key = None
     verification_required = False
+    existing_account = False
 
     if not caller:
         key_result = await create_api_key(email=manifest.owner_email, tier="free")
-        x_api_key = key_result["key_id"]
-        issued_key = x_api_key
 
-        if not key_result.get("existing"):
+        if key_result.get("existing"):
+            # [S1 FIX] Email already registered — do NOT return the existing key.
+            # The caller must verify ownership via the /v1/keys endpoint.
+            existing_account = True
+            issued_key = None
+            x_api_key = None
+        else:
+            x_api_key = key_result["key_id"]
+            issued_key = x_api_key
             # [FIX 6] New keys from registration also require email verification
             token = await create_verification_token(key_result["key_id"], manifest.owner_email)
             verify_link = f"{VERIFY_URL}?token={token}"
@@ -354,13 +419,25 @@ async def register(manifest: ManifestModel, x_api_key: str = Header(None)):
         pricing_details=json.dumps(manifest.pricing) if manifest.pricing else None,
     )
 
+    # [B3 FIX] Only link key to agent if the key doesn't already have an agent.
+    # This prevents registering a second agent from silently orphaning the first.
     if not result.get("existing") and x_api_key:
         async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute(
-                "UPDATE api_keys SET agent_id = ? WHERE key_id = ?",
-                (result["agent_id"], x_api_key),
-            )
-            await db.commit()
+            # Check if key already has an agent linked
+            async with db.execute(
+                "SELECT agent_id FROM api_keys WHERE key_id = ?", (x_api_key,)
+            ) as cur:
+                existing_agent = await cur.fetchone()
+            if existing_agent and existing_agent[0]:
+                # Key already linked to an agent — don't overwrite
+                # The user should use a different key or manage agents separately
+                pass
+            else:
+                await db.execute(
+                    "UPDATE api_keys SET agent_id = ? WHERE key_id = ? AND agent_id IS NULL",
+                    (result["agent_id"], x_api_key),
+                )
+                await db.commit()
 
     # [FIX 7] Surface exceptions from capability indexing background task
     if manifest.capabilities:
@@ -388,19 +465,41 @@ async def register(manifest: ManifestModel, x_api_key: str = Header(None)):
                         ),
                     },
                 )
-        except Exception:
-            pass
+        except Exception as e:
+            _logger.warning(f"Unexpected error: {e}")
+
+    # Push to Google Sheets
+    try:
+        import subprocess
+        # [S9 FIX] Use env-var path for sheets webhook, skip if not configured
+        if SHEETS_WEBHOOK_SCRIPT:
+            data = json.dumps({"email": manifest.owner_email, "key_id": x_api_key or '', "tier": "free", "ip": "", "agent_name": manifest.name})
+            subprocess.Popen(
+                ["python3", SHEETS_WEBHOOK_SCRIPT,
+                 "agentseek_signup", data],
+                start_new_session=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+    except Exception as e:
+        print(f"[WARN] Sheets webhook failed: {e}")
 
     response = {
         "status": "registered",
         "agent_id": result["agent_id"],
         "name": manifest.name,
-        "api_key": issued_key,
         "existing": result.get("existing", False),
         "manifest_url": f"/v1/agents/{result['agent_id']}/manifest",
     }
 
-    if verification_required:
+    # [S1 FIX] Only include api_key for NEW keys, never for existing accounts
+    if issued_key:
+        response["api_key"] = issued_key
+
+    if existing_account:
+        # [S1 FIX] Don't leak any key info for existing accounts
+        response["message"] = "An account with this email already exists. Check your inbox for the verification link, or use /v1/keys to resend it."
+    elif verification_required:
         response["verify_url"] = verify_link
         response["message"] = "Agent registered. Verify your email to activate your API key."
 
@@ -411,7 +510,7 @@ async def discover(
     request: Request,
     q: str = Query(..., min_length=2),
     category: str = None,
-    limit: int = 5,
+    limit: int = Query(default=5, le=100),
     x_api_key: str = Header(None),
 ):
     """Semantic + keyword search for agents by capability."""
@@ -435,12 +534,7 @@ async def discover(
                 )
             await increment_usage(caller["key_id"], "discoveries")
     else:
-        client_ip = (
-            request.headers.get("x-forwarded-for", "")
-            .split(",")[0]
-            .strip()
-            or (request.client.host if request.client else "unknown")
-        )
+        client_ip = _get_client_ip(request)
         _check_discover_rate(client_ip)
 
     agents = await list_agents(category=category, verified=1, limit=50)
@@ -479,12 +573,18 @@ async def discover(
                     "endpoint_url": a["endpoint_url"],
                     "category": a["category"],
                     "trust_score": a.get("trust_score", 0),
+                    "trust_tier": _trust_tier(a.get("trust_score", 0)),
                     "verified": a.get("verified", 0),
+                    "auth_method": a.get("auth_method", "bearer"),
+                    "last_check": a.get("last_health_check"),
+                    "success_rate": a.get("success_rate", 0),
+                    "total_calls": a.get("total_calls", 0),
+                    "endpoint_status": "dead" if a.get("trust_score", 0) < 20 else ("degraded" if a.get("trust_score", 0) < 50 else "healthy"),
                     "manifest_url": f"/v1/agents/{aid}/manifest",
                     "match_type": "semantic",
                 }
-    except Exception:
-        pass  # Fall through to keyword matching
+    except Exception as e:
+        _logger.warning(f"Unexpected error: {e}")  # Fall through to keyword matching
 
     # --- Path 2: Keyword matching (always runs, fills gaps) ---
     q_lower = q.lower()
@@ -523,7 +623,13 @@ async def discover(
                     "endpoint_url": a["endpoint_url"],
                     "category": a["category"],
                     "trust_score": a.get("trust_score", 0),
+                    "trust_tier": _trust_tier(a.get("trust_score", 0)),
                     "verified": a.get("verified", 0),
+                    "auth_method": a.get("auth_method", "bearer"),
+                    "last_check": a.get("last_health_check"),
+                    "success_rate": a.get("success_rate", 0),
+                    "total_calls": a.get("total_calls", 0),
+                    "endpoint_status": "dead" if a.get("trust_score", 0) < 20 else ("degraded" if a.get("trust_score", 0) < 50 else "healthy"),
                     "manifest_url": f"/v1/agents/{aid}/manifest",
                     "match_type": "keyword",
                 }
@@ -566,13 +672,14 @@ async def discover(
                         for r in results:
                             if r["agent_id"] in llm_map:
                                 r["why"] = llm_map[r["agent_id"]]["why"]
-        except Exception:
-            pass
+        except Exception as e:
+            _logger.warning(f"Unexpected error: {e}")
 
+    # [B7 FIX] Return the full count before slicing, not the page size
     return {
         "query": q,
         "results": results[:limit],
-        "total": len(results[:limit]),
+        "total": len(results),
         "fallback": used_fallback,
     }
 
@@ -588,16 +695,21 @@ async def list_all_agents(category: str = None, verified: bool = None, limit: in
             "endpoint_url": a["endpoint_url"],
             "category": a["category"],
             "trust_score": a.get("trust_score", 0),
+            "trust_tier": _trust_tier(a.get("trust_score", 0)),
             "verified": a.get("verified", 0),
-            "total_calls": a.get("total_calls", 0),
+            "auth_method": a.get("auth_method", "bearer"),
+            "last_check": a.get("last_health_check"),
             "success_rate": a.get("success_rate", 0),
+            "total_calls": a.get("total_calls", 0),
+            "endpoint_status": "dead" if a.get("trust_score", 0) < 20 else ("degraded" if a.get("trust_score", 0) < 50 else "healthy"),
             "manifest_url": f"/v1/agents/{a['id']}/manifest",
             "logo_url": a.get("logo_url"),
             "pricing_model": a.get("pricing_model"),
         }
         for a in agents
     ]
-    return {"agents": results, "total": len(results)}
+    # [B7 FIX] Return the total count of ALL matching agents, not just the page
+    return {"agents": results, "total": await count_agents(category, verified)}
 
 @app.get("/v1/agents/{agent_id}")
 async def get_agent_details(agent_id: str):
@@ -634,7 +746,7 @@ async def update_agent(
 ):
     """Update an existing agent. Requires owner key or X-Admin-Key."""
     # Admin can bypass API key requirement
-    is_admin = (x_admin_key == ADMIN_API_KEY)
+    is_admin = hmac.compare_digest(x_admin_key or "", ADMIN_API_KEY)
     caller = await get_caller(x_api_key)
     if not caller and not is_admin:
         raise HTTPException(status_code=401, detail="Valid API key or admin key required.")
@@ -727,7 +839,7 @@ async def deactivate_agent(
 ):
     """Deactivate (soft-delete) an agent. Requires owner key or X-Admin-Key."""
     # Admin can bypass API key requirement
-    is_admin = (x_admin_key == ADMIN_API_KEY)
+    is_admin = hmac.compare_digest(x_admin_key or "", ADMIN_API_KEY)
     caller = await get_caller(x_api_key)
     if not caller and not is_admin:
         raise HTTPException(status_code=401, detail="Valid API key or admin key required.")
@@ -792,6 +904,10 @@ async def review_agent(agent_id: str, review: ReviewModel, x_api_key: str = Head
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
 
+    # [S4 FIX] Prevent self-review — agent owners can't review their own agent
+    if caller.get("agent_id") == agent_id:
+        raise HTTPException(status_code=403, detail="You cannot review your own agent.")
+
     try:
         result = await add_review(
             agent_id=agent_id,
@@ -846,8 +962,10 @@ async def agent_transactions(agent_id: str, x_api_key: str = Header(None), limit
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
 
+    # [S2 FIX] Only the real admin key or the agent owner can view transactions.
+    # Enterprise tier is NOT admin — it's a customer tier, not a platform operator.
     caller_agent_id = caller.get("agent_id")
-    is_admin = caller.get("tier") == "enterprise"
+    is_admin = hmac.compare_digest(x_admin_key or "", ADMIN_API_KEY) if ADMIN_API_KEY else False
     if caller_agent_id != agent_id and not is_admin:
         raise HTTPException(status_code=403, detail="You may only view your own agent's transactions.")
 
@@ -855,9 +973,9 @@ async def agent_transactions(agent_id: str, x_api_key: str = Header(None), limit
     return {"agent_id": agent_id, "transactions": transactions}
 
 @app.post("/v1/keys")
-async def create_key(request: Request, email: str = Query(...)):
+async def create_key(request: Request, email: EmailStr = Query(...)):
     """Create a new API key. Key starts inactive until email is verified."""
-    client_ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "unknown").split(",")[0].strip()
+    client_ip = _get_client_ip(request)
     _check_key_creation_rate(client_ip)
     result = await create_api_key(email=email, tier="free")
 
@@ -869,11 +987,68 @@ async def create_key(request: Request, email: str = Query(...)):
         # In production, send email via SMTP/SendGrid/etc.
         # For now, return the verify link directly (MVP)
         result["verify_url"] = verify_link
-        result["message"] = "Key created. Verify your email to activate it."
+        result["message"] = "Key created. Click the verify link below to activate it."
     else:
-        result["message"] = "Key already exists for this email."
+        # [S1 FIX] Existing account — do NOT return key_id.
+        # Tell the user to check their email or use the resend flow.
+        result["message"] = "An API key already exists for this email. Check your inbox for the verification link, or contact support."
+        result.pop("key_id", None)
 
     return result
+
+@app.get("/v1/keys")
+async def create_key_page(request: Request, email: str = Query(default="")):
+    """Show API key creation page. If email provided, create key via POST."""
+    html = """<!DOCTYPE html>
+<html><head><title>AgentSeek — Get Your API Key</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#0f1117; color:#e2e4ea; display:flex; align-items:center; justify-content:center; min-height:100vh; }
+  .card { background:#1a1d27; border:1px solid #2a2d3a; border-radius:16px; padding:48px; max-width:480px; width:90%; text-align:center; }
+  h1 { font-size:24px; margin-bottom:8px; color:#fff; }
+  h1 span { color:#6366f1; }
+  p { color:#8890a8; margin-bottom:24px; font-size:15px; line-height:1.5; }
+  .key-box { background:#0f1117; border:1px solid #2a2d3a; border-radius:8px; padding:16px; font-family:monospace; font-size:14px; color:#22c55e; word-break:break-all; margin-bottom:16px; }
+  .verify-link { color:#6366f1; word-break:break-all; }
+  a { color:#6366f1; text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  form { display:flex; gap:8px; margin-top:16px; }
+  input[type=email] { flex:1; padding:12px 16px; border-radius:8px; border:1px solid #2a2d3a; background:#0f1117; color:#e2e4ea; font-size:14px; outline:none; }
+  input[type=email]:focus { border-color:#6366f1; }
+  button { padding:12px 24px; border-radius:8px; border:none; background:#6366f1; color:#fff; font-size:14px; font-weight:600; cursor:pointer; white-space:nowrap; }
+  button:hover { background:#4f46e5; }
+  button:disabled { opacity:0.5; cursor:not-allowed; }
+  .back { margin-top:24px; font-size:13px; }
+</style></head>
+<body><div class="card">
+  <h1>Agent<span>Seek</span></h1>
+  <p>Get your free API key to start discovering and registering AI agents.</p>
+  <form id="kf">
+    <input type="email" id="em" placeholder="Enter your email" required>
+    <button type="submit" id="btn">Get Key</button>
+  </form>
+  <div id="result"></div>
+  <div class="back"><a href="https://agentseek.co">← Back to AgentSeek</a></div>
+</div>
+<script>
+document.getElementById('kf').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const em=document.getElementById('em').value.trim();
+  if(!em)return;
+  const b=document.getElementById('btn');
+  b.textContent='Creating...';b.disabled=true;
+  try{
+    const r=await fetch('/v1/keys?email='+encodeURIComponent(em),{method:'POST'});
+    const d=await r.json();
+    document.getElementById('result').innerHTML=r.ok&&d.key_id?
+      '<p style="color:#22c55e;margin-bottom:16px">✅ Key created! Copy it below:</p><div class="key-box">'+d.key_id+'</div>'+(d.verify_url?'<p style="margin-top:16px"><a href="'+d.verify_url+'" class="verify-link" style="font-size:16px;padding:8px 16px;border:1px solid #6366f1;border-radius:8px;display:inline-block">👉 Click here to verify your key</a></p>':''):
+      '<p style="color:#ef4444">'+(d.detail||d.message||'Error creating key')+'</p>';
+    b.textContent='✅ Key Created!';b.style.background='#22c55e';
+  }catch(err){b.textContent='Error — try again';b.disabled=false;}
+});
+</script></body></html>"""
+    return HTMLResponse(content=html)
 
 @app.get("/v1/verify")
 async def verify_email(token: str = Query(...)):
@@ -915,14 +1090,14 @@ async def key_status(key_id: str):
 @app.get("/v1/admin/stats")
 async def admin_stats(x_admin_key: str = Header(None)):
     """Admin stats. Requires X-Admin-Key header."""
-    if x_admin_key != ADMIN_API_KEY:
+    if not hmac.compare_digest(x_admin_key or "", ADMIN_API_KEY):
         raise HTTPException(status_code=403, detail="Invalid admin key")
     return await get_stats()
 
 @app.post("/v1/admin/reset-counters")
 async def admin_reset_counters(x_admin_key: str = Header(None)):
     """Delete usage counters older than 2 months. Call via cron on the 1st."""
-    if x_admin_key != ADMIN_API_KEY:
+    if not hmac.compare_digest(x_admin_key or "", ADMIN_API_KEY):
         raise HTTPException(status_code=403, detail="Invalid admin key")
     await reset_monthly_usage()
     return {"status": "ok", "message": "Old usage counters purged"}
@@ -930,7 +1105,7 @@ async def admin_reset_counters(x_admin_key: str = Header(None)):
 @app.delete("/v1/admin/keys/{key_id}")
 async def admin_revoke_key(key_id: str, x_admin_key: str = Header(None)):
     """Revoke an API key. Admin only."""
-    if x_admin_key != ADMIN_API_KEY:
+    if not hmac.compare_digest(x_admin_key or "", ADMIN_API_KEY):
         raise HTTPException(status_code=403, detail="Invalid admin key")
     caller = await validate_key(key_id)
     if not caller:
@@ -946,7 +1121,7 @@ async def admin_revoke_key(key_id: str, x_admin_key: str = Header(None)):
 @app.delete("/v1/admin/agents/{agent_id}")
 async def admin_purge_agent(agent_id: str, x_admin_key: str = Header(None)):
     """Permanently delete an agent and all associated data. Admin only."""
-    if x_admin_key != ADMIN_API_KEY:
+    if not hmac.compare_digest(x_admin_key or "", ADMIN_API_KEY):
         raise HTTPException(status_code=403, detail="Invalid admin key")
     agent = await get_agent(agent_id)
     if not agent:
@@ -1013,7 +1188,8 @@ async def stripe_webhook(request: Request):
         customer_id = session.get("customer")
 
         if key_id and tier:
-            verified_level = 2 if tier == "featured" else 1
+            # [B9 FIX] Enterprise tier should get highest verified level
+            verified_level = {"enterprise": 3, "featured": 2, "verified": 1}.get(tier, 0)
             async with aiosqlite.connect(DB_PATH) as db:
                 await db.execute(
                     "UPDATE api_keys SET tier = ?, stripe_customer_id = ? WHERE key_id = ?",
@@ -1035,8 +1211,8 @@ async def stripe_webhook(request: Request):
                                 "text": f"💰 Agent Registry: {tier} upgrade for key {key_id[:12]}...",
                             },
                         )
-                except Exception:
-                    pass
+                except Exception as e:
+                    _logger.warning(f"Unexpected error: {e}")
 
     elif event["type"] == "customer.subscription.deleted":
         # [FIX 3] Downgrade tier AND reset verified status
@@ -1068,8 +1244,8 @@ async def stripe_webhook(request: Request):
                             "text": f"⚠️ Agent Registry: subscription cancelled for customer {customer_id}",
                         },
                     )
-            except Exception:
-                pass
+            except Exception as e:
+                _logger.warning(f"Unexpected error: {e}")
 
     return {"status": "ok"}
 
@@ -1079,7 +1255,7 @@ async def stripe_webhook(request: Request):
 
 @app.get("/.well-known/ai-plugin.json")
 async def ai_plugin_manifest(request: Request):
-    host = request.headers.get("host", "api.agentseek.co")
+    host = request.headers.get("host", os.getenv("DEFAULT_HOST", "agentseek.co"))
     scheme = "https" if "localhost" not in host else "http"
     return {
         "schema_version": "v1",
@@ -1094,9 +1270,11 @@ async def ai_plugin_manifest(request: Request):
         "legal_info_url": "https://agentseek.co/terms",
     }
 
-@app.get("/openapi.json")
-async def openapi_spec():
-    return app.openapi()
+# [S7 FIX] Gate openapi.json behind DEBUG — same as docs_url/redoc_url
+if os.getenv("DEBUG"):
+    @app.get("/openapi.json")
+    async def openapi_spec():
+        return app.openapi()
 
 @app.get("/")
 async def landing():

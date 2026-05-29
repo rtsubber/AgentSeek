@@ -1,34 +1,15 @@
-venv/
+node_modules/
+.env
+.env.local
+.vercel/
+*.log
+.DS_Store
 __pycache__/
 *.pyc
 *.db
-.env
-*.egg-info/
-node_modules/
-.DS_Store
-
-# Secrets and credentials
-*.key
-*.token
-*.pem
-*.p12
-.env*
-!.env.example
-secrets*
-credentials*
-service-account*.json
-
-# Database files
-*.db
 *.db-journal
 *.db-wal
-
-# Sensitive documentation
-FULL-SOURCE-CODE*
-
-# IDE and OS
-.idea/
-.vscode/
-*.swp
-*.swo
-.DS_Store
+*.db-shm
+venv/
+*.sqlite
+agentseek.db

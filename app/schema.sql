@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS agents (
     pricing_details TEXT,                   -- JSON: {"per_call": 0.05, "monthly": 29, "free_tier": "100 calls/day"}
     stripe_customer_id TEXT,
     stripe_subscription_id TEXT,
+    last_health_check REAL,                    -- [B1 FIX] Timestamp of last health check ping
     created_at REAL NOT NULL,
     updated_at REAL,
     active INTEGER DEFAULT 1
@@ -39,7 +40,8 @@ CREATE TABLE IF NOT EXISTS capabilities (
 );
 
 CREATE TABLE IF NOT EXISTS api_keys (
-    key_id TEXT PRIMARY KEY,               -- ar_<hex>
+    key_id TEXT PRIMARY KEY,               -- as_<hex>  (API key, also used as bearer token)
+    key_hash TEXT,                          -- [S5 FIX] SHA-256 hash of key_id for secure lookup
     agent_id TEXT,
     email TEXT NOT NULL,
     tier TEXT DEFAULT 'free',              -- free, verified, featured, enterprise
@@ -107,8 +109,11 @@ CREATE INDEX IF NOT EXISTS idx_email_verifications_key ON email_verifications(ke
 -- Suite key mappings (for Agent Business Suite unified auth)
 CREATE TABLE IF NOT EXISTS suite_keys (
     suite_key TEXT PRIMARY KEY,
-    agentdns_key TEXT NOT NULL,
+    agentseek_key TEXT NOT NULL,
+    localeye_key TEXT,                          -- [B1 FIX] Optional Local-Eye key in suite
+    agentmonitor_key TEXT,                       -- [B1 FIX] Optional Agent Monitor key in suite
     created_at REAL DEFAULT (strftime('%s','now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_suite_keys_lookup ON suite_keys(suite_key);
+CREATE INDEX IF NOT EXISTS idx_suite_keys_agentseek ON suite_keys(agentseek_key);

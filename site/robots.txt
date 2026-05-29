@@ -1,0 +1,10 @@
+# AgentSeek - https://agentseek.co
+# AI Agent Registry & Discovery
+
+User-agent: *
+Allow: /
+Disallow: /v1/
+Disallow: /openapi.json
+Disallow: /.well-known/
+
+Sitemap: https://agentseek.co/sitemap.xml

@@ -13,6 +13,8 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="AgentSeek — Find AI Talent">
     <meta name="twitter:description" content="Find, verify, and connect AI agents. AgentSeek — where humans find AI talent.">
+    <meta name="twitter:image" content="https://agentseek.co/og-image.png">
+    <link rel="canonical" href="https://agentseek.co">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📡</text></svg>">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -27,6 +29,9 @@
             --accent-glow: rgba(99, 102, 241, 0.3);
             --green: #22c55e;
             --green-dim: #16a34a;
+            --green-glow: rgba(34, 197, 94, 0.3);
+            --gradient: linear-gradient(135deg, #22c55e 0%, #6366f1 100%);
+            --gradient-text: linear-gradient(135deg, #22c55e 0%, #818cf8 100%);
             --border: #27272a;
             --radius: 12px;
         }
@@ -42,33 +47,33 @@
         /* Nav */
         nav { padding: 16px 0; border-bottom: 1px solid var(--border); }
         nav .container { display: flex; justify-content: space-between; align-items: center; }
-        .logo { font-size: 20px; font-weight: 700; color: var(--accent-light); text-decoration: none; }
+        .logo { font-size: 20px; font-weight: 700; background: var(--gradient-text); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-decoration: none; }
         .logo span { color: var(--text-dim); font-weight: 400; }
         .nav-links { display: flex; gap: 24px; align-items: center; }
         .nav-links a { color: var(--text-dim); text-decoration: none; font-size: 14px; transition: color .2s; }
         .nav-links a:hover { color: var(--text); }
         .btn-primary {
-            background: var(--accent); color: white; border: none; padding: 10px 20px;
+            background: var(--gradient); color: white; border: none; padding: 10px 20px;
             border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
             text-decoration: none; display: inline-block; transition: all .2s;
         }
-        .btn-primary:hover { background: var(--accent-light); box-shadow: 0 0 20px var(--accent-glow); }
+        .btn-primary:hover { box-shadow: 0 0 24px var(--accent-glow), 0 0 24px var(--green-glow); transform: translateY(-1px); }
         .btn-secondary {
-            background: transparent; color: var(--accent-light); border: 1px solid var(--accent);
+            background: transparent; color: var(--text); border: 1px solid var(--border);
             padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600;
             cursor: pointer; text-decoration: none; display: inline-block; transition: all .2s;
         }
-        .btn-secondary:hover { background: rgba(99, 102, 241, 0.1); }
+        .btn-secondary:hover { border-color: var(--green); color: var(--green); }
 
         /* Hero */
         .hero {
             padding: 120px 0 80px;
             text-align: center;
-            background: radial-gradient(ellipse at 50% 0%, rgba(99, 102, 241, 0.08) 0%, transparent 60%);
+            background: radial-gradient(ellipse at 50% 0%, rgba(34, 197, 94, 0.08) 0%, rgba(99, 102, 241, 0.06) 40%, transparent 70%);
         }
         .hero h1 {
             font-size: 64px; font-weight: 800; line-height: 1.1;
-            background: linear-gradient(135deg, #fff 0%, var(--accent-light) 100%);
+            background: var(--gradient-text);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             background-clip: text; margin-bottom: 20px;
         }
@@ -109,7 +114,7 @@
         .stats { padding: 40px 0; border-bottom: 1px solid var(--border); }
         .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
         .stat { text-align: center; }
-        .stat .number { font-size: 36px; font-weight: 700; color: var(--accent-light); }
+        .stat .number { font-size: 36px; font-weight: 700; background: var(--gradient-text); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
         .stat .label { font-size: 14px; color: var(--text-dim); margin-top: 4px; }
 
         /* How it works */
@@ -122,16 +127,16 @@
             border-radius: var(--radius); padding: 32px; position: relative;
             transition: all .2s;
         }
-        .step:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .step:hover { border-color: var(--green); transform: translateY(-2px); }
         .step .step-number {
-            width: 40px; height: 40px; background: var(--accent); color: white;
+            width: 40px; height: 40px; background: var(--gradient); color: white;
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
             font-size: 18px; font-weight: 700; margin-bottom: 20px;
         }
         .step h3 { font-size: 20px; margin-bottom: 12px; }
         .step p { font-size: 14px; color: var(--text-dim); line-height: 1.7; }
         .step code {
-            background: rgba(99, 102, 241, 0.15); color: var(--accent-light);
+            background: rgba(34, 197, 94, 0.15); color: var(--green);
             padding: 2px 6px; border-radius: 4px; font-size: 13px;
         }
 
@@ -160,14 +165,14 @@
             border-radius: var(--radius); padding: 32px; text-align: center;
             transition: all .2s; position: relative;
         }
-        .pricing-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .pricing-card:hover { border-color: var(--green); transform: translateY(-2px); }
         .pricing-card.featured {
-            border-color: var(--accent);
-            box-shadow: 0 0 30px var(--accent-glow);
+            border-color: var(--green);
+            box-shadow: 0 0 30px var(--green-glow), 0 0 15px var(--accent-glow);
         }
         .pricing-card.featured::before {
             content: 'POPULAR'; position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
-            background: var(--accent); color: white; padding: 4px 16px; border-radius: 20px;
+            background: var(--gradient); color: white; padding: 4px 16px; border-radius: 20px;
             font-size: 11px; font-weight: 700; letter-spacing: 1px;
         }
         .pricing-card h3 { font-size: 18px; margin-bottom: 8px; color: var(--text-dim); font-weight: 500; }
@@ -185,7 +190,7 @@
             background: var(--bg-card); border: 1px solid var(--border);
             border-radius: var(--radius); padding: 24px; transition: all .2s;
         }
-        .feature:hover { border-color: var(--accent); }
+        .feature:hover { border-color: var(--green); }
         .feature .icon { font-size: 32px; margin-bottom: 16px; }
         .feature h3 { font-size: 16px; margin-bottom: 8px; }
         .feature p { font-size: 14px; color: var(--text-dim); }
@@ -193,7 +198,7 @@
         /* CTA */
         .cta {
             padding: 100px 0; text-align: center;
-            background: radial-gradient(ellipse at 50% 50%, rgba(99, 102, 241, 0.06) 0%, transparent 60%);
+            background: radial-gradient(ellipse at 50% 50%, rgba(34, 197, 94, 0.06) 0%, rgba(99, 102, 241, 0.04) 40%, transparent 70%);
         }
         .cta h2 { font-size: 40px; font-weight: 700; margin-bottom: 16px; }
         .cta p { font-size: 18px; color: var(--text-dim); max-width: 500px; margin: 0 auto 32px; }
@@ -217,11 +222,51 @@
             .pricing-grid { grid-template-columns: repeat(2, 1fr); }
         }
     </style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "AgentSeek",
+  "url": "https://agentseek.co",
+  "logo": "https://agentseek.co/og-image.png",
+  "description": "The directory for AI agents. Register, discover, and connect with AI agents using semantic search, trust scores, and verified badges.",
+  "sameAs": []
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "AgentSeek",
+  "url": "https://agentseek.co",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "https://agentseek.co/?q={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "AgentSeek",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Web",
+  "offers": [
+    { "@type": "Offer", "price": "0", "priceCurrency": "USD", "name": "Free" },
+    { "@type": "Offer", "price": "29", "priceCurrency": "USD", "name": "Starter" },
+    { "@type": "Offer", "price": "99", "priceCurrency": "USD", "name": "Pro" },
+    { "@type": "Offer", "price": "299", "priceCurrency": "USD", "name": "Enterprise" }
+  ],
+  "description": "The directory for AI agents. Find, verify, and connect AI agents with semantic search, trust scores, and verified badges."
+}
+</script>
 </head>
 <body>
     <nav>
         <div class="container">
-            <a href="/" class="logo">Agent<span>Registry</span></a>
+            <a href="/" class="logo">Agent<span>Seek</span></a>
             <div class="nav-links">
                 <a href="#how-it-works">How it Works</a>
                 <a href="#api">API</a>
@@ -235,10 +280,12 @@
     <section class="hero">
         <div class="container">
             <h1>Find AI<br>Talent</h1>
-            <p>Register your agents with A2A-compliant manifests. Discover them by capability with semantic search. One registry, every agent.</p>
+            <p>Register your agents with A2A-compliant manifests. Discover them by capability with semantic search. One directory, every agent.</p>
             <div class="hero-buttons">
-                <a href="/v1/keys?email=" class="btn-primary" id="hero-cta">Get Free API Key →</a>
-                <a href="#api" class="btn-secondary">View API Docs</a>
+                <form id="key-form" style="display:flex;gap:8px;width:100%;max-width:500px">
+                    <input type="email" id="key-email" placeholder="Enter your email" required style="flex:1;padding:12px 16px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:14px">
+                    <button type="submit" class="btn-primary" style="white-space:nowrap">Get Free API Key →</button>
+                </form>
             </div>
             <div class="search-box">
                 <span class="search-icon">🔍</span>
@@ -295,7 +342,7 @@
         </div>
     </section>
 
-    <section class="section" id="api" style="background: linear-gradient(180deg, transparent, rgba(99,102,241,0.03), transparent);">
+    <section class="section" id="api" style="background: linear-gradient(180deg, transparent, rgba(34,102,241,0.03), transparent);">
         <div class="container">
             <h2 class="section-title">API in 30 Seconds</h2>
             <p class="section-subtitle">One endpoint to discover any agent. One POST to register yours.</p>
@@ -444,13 +491,16 @@
         <div class="container">
             <h2>Register Your First Agent</h2>
             <p>Get a free API key and start discovering agents in under a minute.</p>
-            <a href="/v1/keys?email=" class="btn-primary" id="cta-bottom">Get Free API Key →</a>
+            <form id="key-form-bottom" style="display:flex;gap:8px;max-width:500px;margin:0 auto">
+                <input type="email" id="key-email-bottom" placeholder="Enter your email" required style="flex:1;padding:12px 16px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:14px">
+                <button type="submit" class="btn-primary" style="white-space:nowrap">Get Free API Key →</button>
+            </form>
         </div>
     </section>
 
     <footer>
         <div class="container">
-            <a href="/" class="logo">Agent<span>Registry</span></a>
+            <a href="/" class="logo" style="font-size:18px;">Agent<span style="-webkit-text-fill-color:var(--text-dim);font-weight:400">Seek</span></a>
             <div class="links">
                 <a href="#how-it-works">How it Works</a>
                 <a href="#api">API</a>
@@ -483,7 +533,7 @@
                         return;
                     }
                     results.innerHTML = data.results.map(r => `
-                        <div class="search-result" onclick="window.location='/v1/agents/${r.agent_id}'">
+                        <div class="search-result" onclick="window.location='/v1/agents/'+encodeURIComponent(r.agent_id)">
                             <h4>${r.name} ${r.verified ? '<span class="verified">✓ Verified</span>' : ''} <span class="score">${r.match_score}%</span></h4>
                             <p>${r.description}</p>
                             <div class="meta">${r.category} · Trust: ${r.trust_score} · ${r.match_type === 'semantic' ? '🧠 Semantic' : '🔑 Keyword'}</div>
@@ -494,6 +544,74 @@
                     results.classList.remove('active');
                 }
             }, 300);
+        });
+
+        // Handle API key form
+        document.getElementById('key-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('key-email').value.trim();
+            if (!email) return;
+            const btn = e.target.querySelector('button');
+            btn.textContent = 'Creating...';
+            btn.disabled = true;
+            try {
+                const res = await fetch('/v1/keys?email=' + encodeURIComponent(email), { method: 'POST' });
+                const data = await res.json();
+                if (res.ok && data.key_id) {
+                    btn.style.display = 'none';
+                    const input = document.getElementById('key-email');
+                    input.style.display = 'none';
+                    const form = document.getElementById('key-form');
+                    let html = '<div style="width:100%;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:8px;text-align:left"><div style="font-size:13px;color:var(--text-dim);margin-bottom:4px">Your API Key:</div><div style="font-family:monospace;font-size:14px;color:#22c55e;word-break:break-all;padding:8px;background:var(--bg);border-radius:4px">' + data.key_id + '</div>';
+                    if (data.verify_url) {
+                        html += '<a href="' + data.verify_url + '" style="display:inline-block;margin-top:12px;padding:10px 20px;background:#6366f1;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">👉 Verify & Activate Your Key</a>';
+                    } else {
+                        html += '<div style="margin-top:8px;color:#22c55e;font-size:13px">✅ Already active!</div>';
+                    }
+                    html += '</div>';
+                    form.insertAdjacentHTML('afterend', html);
+                } else {
+                    btn.textContent = 'Error — try again';
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                btn.textContent = 'Error — try again';
+                btn.disabled = false;
+            }
+        });
+
+        // Handle bottom API key form
+        document.getElementById('key-form-bottom')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('key-email-bottom').value.trim();
+            if (!email) return;
+            const btn = e.target.querySelector('button');
+            btn.textContent = 'Creating...';
+            btn.disabled = true;
+            try {
+                const res = await fetch('/v1/keys?email=' + encodeURIComponent(email), { method: 'POST' });
+                const data = await res.json();
+                if (res.ok && data.key_id) {
+                    btn.style.display = 'none';
+                    const input = document.getElementById('key-email-bottom');
+                    input.style.display = 'none';
+                    const form = document.getElementById('key-form-bottom');
+                    let html = '<div style="width:100%;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:8px;text-align:left"><div style="font-size:13px;color:var(--text-dim);margin-bottom:4px">Your API Key:</div><div style="font-family:monospace;font-size:14px;color:#22c55e;word-break:break-all;padding:8px;background:var(--bg);border-radius:4px">' + data.key_id + '</div>';
+                    if (data.verify_url) {
+                        html += '<a href="' + data.verify_url + '" style="display:inline-block;margin-top:12px;padding:10px 20px;background:#6366f1;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">👉 Verify & Activate Your Key</a>';
+                    } else {
+                        html += '<div style="margin-top:8px;color:#22c55e;font-size:13px">✅ Already active!</div>';
+                    }
+                    html += '</div>';
+                    form.insertAdjacentHTML('afterend', html);
+                } else {
+                    btn.textContent = 'Error — try again';
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                btn.textContent = 'Error — try again';
+                btn.disabled = false;
+            }
         });
 
         document.addEventListener('click', (e) => {
