@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="google-site-verification" content="ke_YxLxF8EJWmQzVGUu-PEyJ_f4Nr58ytPvux3IIuKo" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AgentSeek — Find AI Talent</title>
     <meta name="description" content="AgentSeek is where humans find AI talent. Register, discover, and connect with AI agents using semantic search, trust scores, and verified badges.">
@@ -104,11 +105,19 @@
         }
         .search-result:last-child { border-bottom: none; }
         .search-result:hover { background: var(--bg-card-hover); }
-        .search-result h4 { font-size: 15px; margin-bottom: 4px; }
-        .search-result h4 .verified { color: var(--green); font-size: 12px; margin-left: 6px; }
+        .search-result { display: flex; gap: 12px; align-items: flex-start; }
+        .search-result .agent-icon { width: 32px; height: 32px; border-radius: 6px; flex-shrink: 0; object-fit: contain; margin-top: 2px; background: var(--bg-card); }
+        .search-result .result-content { flex: 1; min-width: 0; }
+        .search-result h4 { font-size: 15px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .search-result h4 .verified { color: var(--green); font-size: 12px; cursor: help; }
+        .search-result h4 .listed { color: var(--accent-light); font-size: 12px; opacity: 0.8; }
+        .search-result h4 .badge-tooltip { position: relative; }
+        .search-result h4 .badge-tooltip:hover::after { content: attr(data-tip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--bg-card-hover); color: var(--text); padding: 4px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap; z-index: 10; border: 1px solid var(--border); }
         .search-result p { font-size: 13px; color: var(--text-dim); }
-        .search-result .meta { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+        .search-result .meta { font-size: 12px; color: var(--text-dim); margin-top: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .search-result .score { background: var(--accent); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .search-result .claim-btn { font-size: 11px; color: var(--accent); cursor: pointer; text-decoration: underline; opacity: 0.7; transition: opacity 0.2s; }
+        .search-result .claim-btn:hover { opacity: 1; }
 
         /* Stats */
         .stats { padding: 40px 0; border-bottom: 1px solid var(--border); }
@@ -532,13 +541,21 @@
                         results.classList.add('active');
                         return;
                     }
-                    results.innerHTML = data.results.map(r => `
-                        <div class="search-result" onclick="window.location='/v1/agents/'+encodeURIComponent(r.agent_id)">
-                            <h4>${r.name} ${r.verified ? '<span class="verified">✓ Verified</span>' : ''} <span class="score">${r.match_score}%</span></h4>
-                            <p>${r.description}</p>
-                            <div class="meta">${r.category} · Trust: ${r.trust_score} · ${r.match_type === 'semantic' ? '🧠 Semantic' : '🔑 Keyword'}</div>
-                        </div>
-                    `).join('');
+                    results.innerHTML = data.results.map(r => {
+                        const icon = r.logo_url || `https://www.google.com/s2/favicons?sz=64&domain=${r.website_url ? new URL(r.website_url).hostname : 'agentseek.co'}`;
+                        const badge = r.verified
+                            ? '<span class="verified badge-tooltip" data-tip="Verified by AgentSeek team">✓ Verified</span>'
+                            : '<span class="listed badge-tooltip" data-tip="Curated listing — claim it for your agent">Listed</span>';
+                        const claimLink = !r.verified ? `<span class="claim-btn" onclick="event.stopPropagation(); openClaimModal(\'${r.agent_id}\', \'${r.name.replace(/'/g, "\\'")}\')">Claim this listing</span>` : '';
+                        return `<div class="search-result" onclick="window.location='/v1/agents/'+encodeURIComponent('${r.agent_id}')">
+                            <img class="agent-icon" src="${icon}" alt="${r.name}" onerror="this.src='https://www.google.com/s2/favicons?sz=64&domain=agentseek.co'">
+                            <div class="result-content">
+                                <h4>${r.name} ${badge} <span class="score">${r.match_score}%</span></h4>
+                                <p>${r.description}</p>
+                                <div class="meta">${r.category} · Trust: ${r.trust_score} · ${r.match_type === 'semantic' ? '🧠 Semantic' : '🔑 Keyword'}${claimLink ? ' · ' + claimLink : ''}</div>
+                            </div>
+                        </div>`;
+                    }).join('');
                     results.classList.add('active');
                 } catch (e) {
                     results.classList.remove('active');
@@ -614,8 +631,83 @@
             }
         });
 
+        // Claim listing modal
+        function openClaimModal(agentId, agentName) {
+            // Remove existing modal if any
+            const existing = document.getElementById('claim-modal');
+            if (existing) existing.remove();
+
+            const modal = document.createElement('div');
+            modal.id = 'claim-modal';
+            modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:1000;display:flex;align-items:center;justify-content:center;';
+            modal.innerHTML = `
+                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:480px;width:90%;">
+                    <h3 style="margin:0 0 4px 0;font-size:18px;">Claim "${agentName}"</h3>
+                    <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;">Are you the owner or representative of this agent? Claim this listing to update details, add branding, and get a Verified badge.</p>
+                    <form id="claim-form">
+                        <input type="hidden" id="claim-agent-id" value="${agentId}">
+                        <div style="margin-bottom:12px;"><label style="font-size:13px;color:var(--text-dim);display:block;margin-bottom:4px;">Your Name *</label><input type="text" id="claim-name" required style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;"></div>
+                        <div style="margin-bottom:12px;"><label style="font-size:13px;color:var(--text-dim);display:block;margin-bottom:4px;">Email *</label><input type="email" id="claim-email" required style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;"></div>
+                        <div style="margin-bottom:12px;"><label style="font-size:13px;color:var(--text-dim);display:block;margin-bottom:4px;">Agent Website</label><input type="url" id="claim-url" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;" placeholder="https://..."></div>
+                        <div style="margin-bottom:12px;"><label style="font-size:13px;color:var(--text-dim);display:block;margin-bottom:4px;">Proof of Ownership</label><input type="url" id="claim-proof" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;" placeholder="Link showing you own this agent (e.g. your website)"></div>
+                        <div style="margin-bottom:16px;"><label style="font-size:13px;color:var(--text-dim);display:block;margin-bottom:4px;">Note (optional)</label><textarea id="claim-note" rows="2" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;resize:vertical;"></textarea></div>
+                        <div style="display:flex;gap:8px;">
+                            <button type="submit" style="flex:1;padding:10px;background:#6366f1;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;">Submit Claim</button>
+                            <button type="button" onclick="document.getElementById('claim-modal').remove()" style="padding:10px 16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);cursor:pointer;">Cancel</button>
+                        </div>
+                    </form>
+                    <div id="claim-result" style="display:none;margin-top:12px;padding:12px;border-radius:8px;font-size:13px;"></div>
+                </div>`;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+            // Handle claim form submission
+            document.getElementById('claim-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const result = document.getElementById('claim-result');
+                const submitBtn = e.target.querySelector('button[type=submit]');
+                submitBtn.textContent = 'Submitting...';
+                submitBtn.disabled = true;
+                try {
+                    const res = await fetch('/v1/claim', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            agent_id: document.getElementById('claim-agent-id').value,
+                            claimer_name: document.getElementById('claim-name').value,
+                            claimer_email: document.getElementById('claim-email').value,
+                            claimer_url: document.getElementById('claim-url').value || null,
+                            proof_of_ownership: document.getElementById('claim-proof').value || null,
+                            note: document.getElementById('claim-note').value || null,
+                        })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        result.style.display = 'block';
+                        result.style.background = '#22c55e20';
+                        result.style.color = '#22c55e';
+                        result.textContent = '✅ ' + data.message;
+                    } else {
+                        result.style.display = 'block';
+                        result.style.background = '#ef444420';
+                        result.style.color = '#ef4444';
+                        result.textContent = '❌ ' + (data.detail || 'Submission failed. Try again.');
+                        submitBtn.textContent = 'Submit Claim';
+                        submitBtn.disabled = false;
+                    }
+                } catch (err) {
+                    result.style.display = 'block';
+                    result.style.background = '#ef444420';
+                    result.style.color = '#ef4444';
+                    result.textContent = '❌ Network error. Please try again.';
+                    submitBtn.textContent = 'Submit Claim';
+                    submitBtn.disabled = false;
+                }
+            });
+        }
+
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.search-box')) results.classList.remove('active');
+            if (!e.target.closest('.search-box') && !e.target.closest('#claim-modal')) results.classList.remove('active');
         });
 
         // Load live stats
