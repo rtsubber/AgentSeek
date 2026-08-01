@@ -83,6 +83,356 @@
       "source": "/dashboard",
       "destination": "/",
       "permanent": true
+    },
+    {
+      "source": "/agents/langchain",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/crewai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/autogpt",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/babyagi",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/microsoft-semantic-kernel",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/bland-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/vapi-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/retell-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/perplexity-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/tavily-search-api",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/exa-ai-search",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/firecrawl",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/bright-data",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/apify",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/notion-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/otterai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/gamma-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/jasper-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/mailchimp-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/hubspot-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/freshdesk-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/tidio-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/gorgias-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/kustomer-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/n8n",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/activepieces",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/bardeen-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/rewind-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/scrapeless",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/oxylabs-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/wiz-ai-security",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/snyk",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/abnormal-security",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/duolingo-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/coursera-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/quillbot-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/hired-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/greenhouse-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/pymetrics",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/tableau-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/looker-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/mode-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/indeed-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/lever-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/pathrise",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/redfin-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/zillow-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/housecanary",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/trulioo",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/onfido-by-entrust",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/postman-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/vercel-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/supabase",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/openai-realtime-api",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/twilio-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/livekit",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/google-gemini",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/brave-search-api",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/aida-health",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/zocdoc-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/talkiatry-ai",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/health-gorilla",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/casetext-by-thomson-reuters",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/legalrobot",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/spellbook",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/eve-by-cleo",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/v0",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/boltnew-by-stackblitz",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/lovable-ex-gpt-engineer",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agents/devin-by-cognition",
+      "destination": "/",
+      "permanent": true
     }
   ],
   "headers": [

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claim This Listing - AgentSeek</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 500px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 2.5rem;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+        }
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 1.5rem;
+        }
+        h1 {
+            font-size: 1.75rem;
+            margin-bottom: 0.5rem;
+            color: #1a1a2e;
+            text-align: center;
+        }
+        p {
+            color: #666;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            line-height: 1.6;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+        label {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9rem;
+        }
+        input, textarea {
+            padding: 0.85rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #6366f1;
+        }
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        .submit-btn {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.3);
+        }
+        .agent-info {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #6366f1;
+        }
+        .agent-info h3 {
+            margin-bottom: 0.5rem;
+            color: #1e293b;
+        }
+        .agent-info p {
+            margin-bottom: 0.25rem;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+        .success {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+        .loading::before, .success::before {
+            content: "";
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 1rem;
+            border: 4px solid #e0e0e0;
+            border-radius: 50%;
+            border-top-color: #6366f1;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1rem;
+            animation: bounce 0.6s ease infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="container">
+        <img src="/static/agentseek-logo.png" alt="AgentSeek" class="logo">
+        
+        <h1>Claim This Listing</h1>
+        <p>Verify ownership of this agent listing and claim it for your business.</p>
+        
+        <div class="agent-info">
+            <h3>Agent to Claim</h3>
+            <p><strong id="agent-name">Loading...</strong></p>
+            <p id="agent-details">Category: ...</p>
+        </div>
+        
+        <form id="claim-form">
+            <div class="form-group">
+                <label for="name">Full Name</label>
+                <input type="text" id="name" name="name" required placeholder="Your name">
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" required placeholder="you@example.com">
+            </div>
+            
+            <div class="form-group">
+                <label for="website">Website URL</label>
+                <input type="url" id="website" name="website" placeholder="https://example.com">
+            </div>
+            
+            <div class="form-group">
+                <label for="proof">Proof of Ownership</label>
+                <textarea id="proof" name="proof" placeholder="Link to your website, social media, or documentation that proves you own this agent."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="note">Additional Notes</label>
+                <textarea id="note" name="note" placeholder="Any additional information about this agent..."></textarea>
+            </div>
+            
+            <button type="submit" class="submit-btn">Claim This Listing</button>
+        </form>
+        
+        <div class="loading" id="loading"></div>
+        <div class="success" id="success">
+            <svg class="success-icon" viewBox="0 0 24 24" fill="#10b981">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+            </svg>
+            <h3>Claim Submitted!</h3>
+            <p>Thank you for claiming this listing. We'll review your request and update the listing within 24-48 hours.</p>
+            <p style="margin-top: 1rem;"><strong>Reference ID:</strong> <span id="ref-id"></span></p>
+        </div>
+    </div>
+</body>
+</html>

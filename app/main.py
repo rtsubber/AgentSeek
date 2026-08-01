@@ -40,10 +40,14 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Header, HTTPException, Request, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
+from seo_pages import router as seo_router, slugify, CATEGORY_META, render_agent_page, render_category_page, render_categories_index, _truncate, _trust_class
+from claim_and_og import router as claim_og_router
+from blog_pages import router as blog_router
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field, HttpUrl, EmailStr
+from typing import Optional
 
 from db import (
     init_db, register_agent, get_agent, list_agents, count_agents, update_agent_stats,
@@ -111,7 +115,7 @@ if STRIPE_SECRET_KEY:
     stripe.api_key = STRIPE_SECRET_KEY
 
 TIER_LIMITS = {
-    "free": {"discoveries_per_month": 100, "can_list": True, "verified": False},
+    "free": {"discoveries_per_month": -1, "can_list": True, "verified": False},
     "verified": {"discoveries_per_month": -1, "can_list": True, "verified": True},
     "featured": {"discoveries_per_month": -1, "can_list": True, "verified": True},
     "enterprise": {"discoveries_per_month": -1, "can_list": True, "verified": True},
@@ -537,11 +541,9 @@ async def discover(
         client_ip = _get_client_ip(request)
         _check_discover_rate(client_ip)
 
-    agents = await list_agents(category=category, verified=1, limit=50)
+    # Show all agents in discovery (verified ranked higher, but listed agents visible too)
+    agents = await list_agents(category=category, limit=100)
     used_fallback = False
-    if not agents:
-        agents = await list_agents(category=category, limit=50)
-        used_fallback = True
 
     if not agents:
         return {"query": q, "results": [], "total": 0, "fallback": False}
@@ -582,6 +584,8 @@ async def discover(
                     "endpoint_status": "dead" if a.get("trust_score", 0) < 20 else ("degraded" if a.get("trust_score", 0) < 50 else "healthy"),
                     "manifest_url": f"/v1/agents/{aid}/manifest",
                     "match_type": "semantic",
+                    "logo_url": a.get("logo_url"),
+                    "website_url": a.get("website_url"),
                 }
     except Exception as e:
         _logger.warning(f"Unexpected error: {e}")  # Fall through to keyword matching
@@ -632,6 +636,8 @@ async def discover(
                     "endpoint_status": "dead" if a.get("trust_score", 0) < 20 else ("degraded" if a.get("trust_score", 0) < 50 else "healthy"),
                     "manifest_url": f"/v1/agents/{aid}/manifest",
                     "match_type": "keyword",
+                    "logo_url": a.get("logo_url"),
+                    "website_url": a.get("website_url"),
                 }
 
     results = sorted(scores.values(), key=lambda x: x["match_score"], reverse=True)
@@ -972,6 +978,13 @@ async def agent_transactions(agent_id: str, x_api_key: str = Header(None), limit
     transactions = await get_agent_transactions(agent_id, limit=limit)
     return {"agent_id": agent_id, "transactions": transactions}
 
+# ---------------------------------------------------------------------------
+# Claim Listing — public endpoint, no auth required
+# ---------------------------------------------------------------------------
+# Claim listing — moved to claim_and_og.py
+# ---------------------------------------------------------------------------
+
+
 @app.post("/v1/keys")
 async def create_key(request: Request, email: EmailStr = Query(...)):
     """Create a new API key. Key starts inactive until email is verified."""
@@ -1249,9 +1262,170 @@ async def stripe_webhook(request: Request):
 
     return {"status": "ok"}
 
+app.include_router(seo_router)
+app.include_router(claim_og_router)
+app.include_router(blog_router)
+
 # ---------------------------------------------------------------------------
-# Well-known endpoints
+# SEO Routes — Agent detail pages, category pages, sitemap
 # ---------------------------------------------------------------------------
+
+# Old seeded agent slugs that no longer exist — 301 redirect to homepage
+# (These were removed when we cleaned the directory down to our 7 verified agents)
+OLD_SLUGS_301 = {
+    "langchain", "crewai", "autogpt", "babyagi", "microsoft-semantic-kernel",
+    "bland-ai", "vapi-ai", "retell-ai",
+    "perplexity-ai", "tavily-search-api", "exa-ai-search",
+    "firecrawl", "bright-data", "apify",
+    "notion-ai", "otterai", "gamma-ai",
+    "jasper-ai", "mailchimp-ai", "hubspot-ai",
+    "freshdesk-ai", "tidio-ai", "gorgias-ai", "kustomer-ai",
+    "n8n", "activepieces", "bardeen-ai", "rewind-ai",
+    "scrapeless", "oxylabs-ai",
+    "wiz-ai-security", "snyk", "abnormal-security",
+    "duolingo-ai", "coursera-ai", "quillbot-ai",
+    "hired-ai", "greenhouse-ai", "pymetrics",
+    "tableau-ai", "looker-ai", "mode-ai",
+    "indeed-ai", "lever-ai", "pathrise",
+    "redfin-ai", "zillow-ai", "housecanary",
+    "trulioo", "onfido-by-entrust",
+    "postman-ai", "vercel-ai", "supabase",
+    "openai-realtime-api", "twilio-ai", "livekit",
+    "google-gemini", "brave-search-api",
+    "aida-health", "zocdoc-ai", "talkiatry-ai", "health-gorilla",
+    "casetext-by-thomson-reuters", "legalrobot", "spellbook", "eve-by-cleo",
+    "v0", "boltnew-by-stackblitz", "lovable-ex-gpt-engineer", "devin-by-cognition",
+}
+
+@app.get("/agents/{slug}")
+async def agent_detail(slug: str, request: Request):
+    """SEO-optimized agent detail page."""
+    # 301 redirect old seeded agent slugs that no longer exist
+    if slug in OLD_SLUGS_301:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/", status_code=301)
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        # Try matching by slug (name-based)
+        cursor = await db.execute("SELECT * FROM agents WHERE active = 1")
+        all_agents = [dict(row) async for row in cursor]
+    
+    # Find agent by slug
+    agent = None
+    for a in all_agents:
+        if slugify(a["name"]) == slug or a["id"] == slug:
+            agent = a
+            break
+    
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    
+    # Normalize trust_score to int for display
+    if agent.get("trust_score"):
+        agent["trust_score"] = int(float(agent["trust_score"]))
+    for a in all_agents:
+        if a.get("trust_score"):
+            a["trust_score"] = int(float(a["trust_score"]))
+    
+    html = render_agent_page(agent, all_agents)
+    return HTMLResponse(content=html, headers={"Cache-Control": "public, max-age=300, s-maxage=600"})
+
+
+@app.get("/categories/{category}")
+async def category_page(category: str):
+    """SEO-optimized category page."""
+    meta = CATEGORY_META.get(category)
+    if not meta:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT * FROM agents WHERE active = 1 AND category = ? ORDER BY trust_score DESC",
+            (category,)
+        )
+        agents = [dict(row) async for row in cursor]
+    
+    # Normalize trust scores
+    for a in agents:
+        if a.get("trust_score"):
+            a["trust_score"] = int(float(a["trust_score"]))
+    
+    # Don't 404 on empty categories - still show the page for SEO
+    html = render_category_page(category, agents, meta)
+    return HTMLResponse(content=html, headers={"Cache-Control": "public, max-age=300, s-maxage=600"})
+
+
+@app.get("/categories")
+@app.get("/categories/")
+async def categories_index():
+    """SEO-optimized categories listing page."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT category, COUNT(*) as count FROM agents WHERE active = 1 GROUP BY category ORDER BY count DESC"
+        )
+        cats = [(row["category"], row["count"]) async for row in cursor]
+    
+    categories_with_counts = [(cat, count, CATEGORY_META.get(cat, {"title": cat.replace("_"," ").title(), "desc": f"AI {cat.replace('_',' ').title()} agents.", "h1": f"AI {cat.replace('_',' ').title()}"})) for cat, count in cats]
+    
+    html = render_categories_index(categories_with_counts)
+    return HTMLResponse(content=html, headers={"Cache-Control": "public, max-age=600, s-maxage=1800"})
+
+
+@app.get("/sitemap.xml")
+async def sitemap():
+    """Generate sitemap.xml for SEO."""
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("SELECT id, name, category, updated_at FROM agents WHERE active = 1 ORDER BY trust_score DESC")
+        agents = [dict(row) async for row in cursor]
+    
+    urls = []
+    # Homepage
+    urls.append(f"""  <url>\n    <loc>https://agentseek.co/</loc>\n    <lastmod>{now}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>""")
+    # Categories page
+    urls.append(f"""  <url>\n    <loc>https://agentseek.co/categories</loc>\n    <lastmod>{now}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.9</priority>\n  </url>""")
+    # Category pages
+    for cat, meta in CATEGORY_META.items():
+        urls.append(f"""  <url>\n    <loc>https://agentseek.co/categories/{cat}</loc>\n    <lastmod>{now}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>""")
+    # Agent pages
+    for agent in agents:
+        slug = slugify(agent["name"])
+        lastmod = agent.get("updated_at", "") or now
+        if lastmod and "T" in str(lastmod):
+            lastmod = str(lastmod).split("T")[0]
+        elif not lastmod:
+            lastmod = now
+        urls.append(f"""  <url>\n    <loc>https://agentseek.co/agents/{slug}</loc>\n    <lastmod>{lastmod}</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>0.7</priority>\n  </url>""")
+    
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{chr(10).join(urls)}\n</urlset>"""
+    return Response(content=xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=3600"})
+
+
+@app.get("/robots.txt")
+async def robots():
+    """Generate robots.txt for SEO."""
+    txt = """User-agent: *
+Allow: /
+Allow: /agents/
+Allow: /categories/
+Allow: /sitemap.xml
+Disallow: /v1/
+Disallow: /.well-known/
+
+Sitemap: https://agentseek.co/sitemap.xml
+"""
+    return Response(content=txt, media_type="text/plain")
+
+
+@app.get("/agentseek2025indexkey")
+async def indexnow_key():
+    """IndexNow key verification file."""
+    return Response(content="agentseek2025indexkey", media_type="text/plain")
 
 @app.get("/.well-known/ai-plugin.json")
 async def ai_plugin_manifest(request: Request):
